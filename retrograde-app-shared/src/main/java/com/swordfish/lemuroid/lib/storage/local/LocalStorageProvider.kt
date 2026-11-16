@@ -35,6 +35,7 @@ import com.swordfish.lemuroid.lib.storage.RomFiles
 import com.swordfish.lemuroid.lib.storage.StorageFile
 import com.swordfish.lemuroid.lib.storage.StorageProvider
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import java.io.File
 import java.io.InputStream
@@ -54,8 +55,14 @@ class LocalStorageProvider(
 
     override val enabledByDefault = true
 
+    // Dendy TV: всегда смотрим внутреннюю папку (встроенные бесплатные игры, игры с телефона)
+    // и, если выбрана, внешнюю папку.
     override fun listBaseStorageFiles(): Flow<List<BaseStorageFile>> =
-        walkDirectory(getExternalFolder() ?: directoriesManager.getInternalRomsDirectory())
+        flow {
+            val internal = directoriesManager.getInternalRomsDirectory()
+            emitAll(walkDirectory(internal))
+            getExternalFolder()?.takeIf { it.absolutePath != internal.absolutePath }?.let { emitAll(walkDirectory(it)) }
+        }
 
     override fun getStorageFile(baseStorageFile: BaseStorageFile): StorageFile? {
         return DocumentFileParser.parseDocumentFile(context, baseStorageFile)

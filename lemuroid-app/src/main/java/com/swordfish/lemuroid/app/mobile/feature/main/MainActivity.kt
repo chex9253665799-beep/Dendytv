@@ -115,6 +115,7 @@ class MainActivity : RetrogradeComponentActivity(), BusyActivity {
             SystemBarStyle.dark(Color.TRANSPARENT),
         )
         super.onCreate(savedInstanceState)
+        com.swordfish.lemuroid.app.tv.phonepad.BundledGames.install(this)
 
         GlobalScope.safeLaunch {
             reviewManager.initialize(applicationContext)

@@ -66,6 +66,7 @@ class MainTVActivity : BaseTVActivity(), BusyActivity {
 
         // Dendy TV: телефон как джойстик
         com.swordfish.lemuroid.app.tv.phonepad.PhonePadService.start(this)
+        com.swordfish.lemuroid.app.tv.phonepad.BundledGames.install(this)
     }
 
     override fun onActivityResult(

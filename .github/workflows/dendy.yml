@@ -39,6 +39,8 @@ jobs:
         run: |
           G=lemuroid-app/src/main/assets/games; mkdir -p $G
           gh release download games -R ${{ github.repository }} -D $G || echo "выпуска games пока нет"
+          # GitHub меняет пробелы в именах на точки — возвращаем пробелы
+          for f in $G/*.*.*; do [ -e "$f" ] && mv "$f" "$G/$(basename "$f" | sed -E 's/\.([^.]*)$/\n\1/; s/\./ /g; s/\n/./')"; done
           cat > $G/LICENSES.txt <<'TXT'
           Бесплатные игры в Dendy TV (свободные лицензии, исходники открыты):
           Thwaite — Damian Yerrick, GPL-3.0 — https://github.com/pinobatch/thwaite-nes

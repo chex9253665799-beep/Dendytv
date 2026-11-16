@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Сборка игр
         run: |
-          set -x
+          set -x +e
           sudo apt-get update -qq && sudo apt-get install -y -qq cc65 python3-pil >/dev/null
           mkdir -p out && cd /tmp
           for r in thwaite-nes croom-nes; do
@@ -24,10 +24,7 @@ jobs:
           done
           cp thwaite-nes/thwaite.nes "$GITHUB_WORKSPACE/out/Thwaite.nes" || true
           cp croom-nes/croom.nes "$GITHUB_WORKSPACE/out/Concentration Room.nes" || true
-          for u in http://sun.hasenbraten.de/vasm/daily/vasm.tar.gz http://sun.hasenbraten.de/vasm/release/vasm.tar.gz http://phoenix.owl.de/tags/vasm1_9f.tar.gz http://phoenix.owl.de/tags/vasm2_0.tar.gz; do
-            curl -fsSL "$u" -o vasm.tgz && break
-          done
-          tar xzf vasm.tgz && d=$(ls -d vasm*/ | head -1) && (cd $d && make CPU=m68k SYNTAX=mot 2>&1 | tail -3) && export PATH=/tmp/$d:$PATH
+          git clone -q --depth 1 https://github.com/mheyer32/vasm && (cd vasm && make CPU=m68k SYNTAX=mot 2>&1 | tail -3) && export PATH=/tmp/vasm:$PATH
           git clone -q --depth 1 https://github.com/M374LX/alexvsbus-md
           (cd alexvsbus-md && sh build.sh; ls -la *.md)
           cp alexvsbus-md/alexvsbus.md "$GITHUB_WORKSPACE/out/Alex vs Bus.md" || true

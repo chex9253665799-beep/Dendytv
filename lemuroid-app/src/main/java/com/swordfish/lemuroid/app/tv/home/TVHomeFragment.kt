@@ -39,6 +39,7 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Smartphone
 import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.Icon
@@ -76,6 +77,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.Fragment
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import com.swordfish.lemuroid.app.tv.phonepad.PhonePadServer
+import com.swordfish.lemuroid.app.tv.phonepad.Qr
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import coil.compose.AsyncImage
@@ -186,6 +192,9 @@ class TVHomeFragment : Fragment() {
         val recent = (state.recentGames + state.favoritesGames).sortedByDescending { it.lastPlayedAt ?: 0 }
         val hero = recent.firstOrNull()
         val firstFocus = remember { FocusRequester() }
+        var showPhone by remember { mutableStateOf(false) }
+        val pad by PhonePadServer.state.collectAsState()
+        val openPhone = { showPhone = true }
 
         LaunchedEffect(Unit) { runCatching { firstFocus.requestFocus() } }
 
@@ -202,7 +211,7 @@ class TVHomeFragment : Fragment() {
                 modifier = Modifier.fillMaxSize(),
             ) {
                 item {
-                    Hero(hero, firstFocus)
+                    Hero(hero, firstFocus, openPhone)
                 }
                 item {
                     Section("Приставки") {
@@ -215,6 +224,9 @@ class TVHomeFragment : Fragment() {
                                 brush = c.brush,
                                 focusRequester = if (hero == null && c.meta == MetaSystemID.NES) firstFocus else null,
                             ) { openSystem(c.meta, n) }
+                        }
+                        item {
+                            Tile("Телефон", "ДЖОЙСТИК ПО QR", Icons.Rounded.Smartphone, Brush.linearGradient(listOf(Color(0xFF3B1E6E), Panel2))) { showPhone = true }
                         }
                         item {
                             Tile("Добавить игры", "ПАПКА С ИГРАМИ", Icons.Rounded.Add, Brush.linearGradient(listOf(Panel2, Panel))) { addGames() }
@@ -250,12 +262,18 @@ class TVHomeFragment : Fragment() {
                     }
                 }
             }
-            TopBar(state)
+            TopBar(state, pad.players.size)
+            if (showPhone) {
+                PhoneOverlay(pad) { showPhone = false }
+            }
         }
     }
 
     @Composable
-    private fun TopBar(state: TVHomeViewModel.HomeViewState) {
+    private fun TopBar(
+        state: TVHomeViewModel.HomeViewState,
+        phones: Int,
+    ) {
         Row(
             Modifier
                 .fillMaxWidth()
@@ -272,6 +290,12 @@ class TVHomeFragment : Fragment() {
             Spacer(Modifier.weight(1f))
             if (state.indexInProgress) {
                 Text("Ищем игры…", color = Mut, fontSize = 14.sp)
+                Spacer(Modifier.width(18.dp))
+            }
+            if (phones > 0) {
+                Box(Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(Color(0xFF34D399)))
+                Spacer(Modifier.width(8.dp))
+                Text(if (phones == 1) "Телефон подключён" else "Подключено телефонов: $phones", color = Mut, fontSize = 14.sp)
             }
         }
     }
@@ -280,6 +304,7 @@ class TVHomeFragment : Fragment() {
     private fun Hero(
         game: Game?,
         focusRequester: FocusRequester,
+        onPhone: () -> Unit,
     ) {
         Box(
             Modifier
@@ -321,6 +346,7 @@ class TVHomeFragment : Fragment() {
                     } else {
                         Pill("Добавить игры", Icons.Rounded.Add, focusRequester) { addGames() }
                     }
+                    Pill("Подключить телефон", Icons.Rounded.Smartphone, null) { onPhone() }
                 }
             }
         }
@@ -444,6 +470,72 @@ class TVHomeFragment : Fragment() {
             Icon(icon, null, tint = c, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
             Text(text, color = c, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+
+    @Composable
+    private fun PhoneOverlay(
+        pad: PhonePadServer.State,
+        onClose: () -> Unit,
+    ) {
+        val done = remember { FocusRequester() }
+        BackHandler { onClose() }
+        LaunchedEffect(Unit) { runCatching { done.requestFocus() } }
+        val url = remember(pad.port) { PhonePadServer.url() }
+        val qr = remember(url) { url?.let { runCatching { Qr.bitmap(it, 600).asImageBitmap() }.getOrNull() } }
+        Box(
+            Modifier
+                .fillMaxSize()
+                .onPreviewKeyEvent {
+                    val c = it.key.nativeKeyCode
+                    c == KeyEvent.KEYCODE_DPAD_UP || c == KeyEvent.KEYCODE_DPAD_DOWN ||
+                        c == KeyEvent.KEYCODE_DPAD_LEFT || c == KeyEvent.KEYCODE_DPAD_RIGHT
+                }
+                .background(Bg.copy(alpha = .97f))
+                .background(Brush.radialGradient(listOf(Violet.copy(alpha = .4f), Color.Transparent), center = androidx.compose.ui.geometry.Offset(0f, 0f), radius = 1000f)),
+        ) {
+            Row(Modifier.fillMaxSize().padding(horizontal = 80.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f).padding(end = 48.dp)) {
+                    Text("ДЖОЙСТИК", color = Color(0xFFC4B5FD), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.5.sp)
+                    Text("Ваш телефон —", color = Txt, fontSize = 44.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(top = 8.dp))
+                    Text("это пульт.", color = Color(0xFFE879F9), fontSize = 44.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(
+                        "Наведите камеру телефона на код. Пульт откроется в браузере — ничего устанавливать не нужно. " +
+                            "Телефон и телевизор должны быть в одной Wi‑Fi сети. Можно подключить два телефона.",
+                        color = Mut, fontSize = 17.sp, lineHeight = 26.sp, modifier = Modifier.padding(top = 16.dp, bottom = 26.dp),
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        for (i in 0 until PhonePadServer.MAX_PLAYERS) {
+                            val name = pad.players.getOrNull(i)
+                            Row(
+                                Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(Color.White.copy(alpha = if (name != null) .1f else .04f)).padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Box(
+                                    Modifier.size(38.dp).clip(RoundedCornerShape(11.dp)).background(if (name != null) Grad else Brush.linearGradient(listOf(Panel2, Panel2))),
+                                    contentAlignment = Alignment.Center,
+                                ) { Text("${i + 1}", color = Color.White, fontWeight = FontWeight.Bold) }
+                                Spacer(Modifier.width(12.dp))
+                                Text(name ?: "Игрок ${i + 1} · ожидание…", color = if (name != null) Txt else Mut, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(26.dp))
+                    Pill("Готово", Icons.Rounded.PlayArrow, done) { onClose() }
+                }
+                Column(
+                    Modifier.width(380.dp).clip(RoundedCornerShape(26.dp)).background(Color.White.copy(alpha = .06f)).padding(30.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    if (qr != null) {
+                        Image(qr, null, modifier = Modifier.size(300.dp).clip(RoundedCornerShape(20.dp)))
+                        Text("или в браузере телефона", color = Mut, fontSize = 14.sp, modifier = Modifier.padding(top = 20.dp))
+                        Text(url!!.removePrefix("http://"), color = Txt, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    } else {
+                        Text("Телевизор не подключён к сети.\nПодключите Wi‑Fi или кабель.", color = Txt, fontSize = 18.sp)
+                    }
+                }
+            }
         }
     }
 

@@ -63,6 +63,9 @@ class MainTVActivity : BaseTVActivity(), BusyActivity {
         }
 
         ensureLegacyStoragePermissionsIfNeeded()
+
+        // Dendy TV: телефон как джойстик
+        com.swordfish.lemuroid.app.tv.phonepad.PhonePadService.start(this)
     }
 
     override fun onActivityResult(

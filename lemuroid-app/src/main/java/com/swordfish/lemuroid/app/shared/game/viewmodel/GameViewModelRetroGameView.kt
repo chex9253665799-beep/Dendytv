@@ -185,6 +185,9 @@ class GameViewModelRetroGameView(
         retroGameViewFlow.value = result
         gameState.value = GameState.Ready
 
+        // Dendy TV: телефон как джойстик
+        com.swordfish.lemuroid.app.tv.phonepad.PhonePadClient.attach(result, system.id.dbname, lifecycle)
+
         return currentState.gameData to result
     }
 

@@ -127,6 +127,17 @@ class NotificationsManager(private val applicationContext: Context) {
         return builder.build()
     }
 
+    fun phonePadNotification(): Notification {
+        createDefaultNotificationChannel()
+        return NotificationCompat.Builder(applicationContext, DEFAULT_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_lemuroid_tiny)
+            .setContentTitle("Dendy TV")
+            .setContentText("Телефон как джойстик готов")
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .build()
+    }
+
     private fun createDefaultNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = applicationContext.getString(R.string.notification_channel_name)
@@ -146,5 +157,6 @@ class NotificationsManager(private val applicationContext: Context) {
         const val SAVE_SYNC_NOTIFICATION_ID = 2
         const val GAME_RUNNING_NOTIFICATION_ID = 3
         const val CORE_INSTALL_NOTIFICATION_ID = 4
+        const val PHONE_PAD_NOTIFICATION_ID = 5
     }
 }

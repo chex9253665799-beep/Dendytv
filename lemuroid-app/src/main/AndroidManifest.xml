@@ -69,6 +69,11 @@
             android:theme="@style/LemuroidMaterialTheme.Game" />
 
         <service
+            android:name=".app.tv.phonepad.PhonePadService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <service
             android:name=".app.mobile.feature.game.GameService"
             android:foregroundServiceType="dataSync"
             android:process=":game" />

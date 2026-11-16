@@ -1,0 +1,102 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0c0a16"><title>Dendy TV — пульт</title>
+<style>
+:root{--bg:#0c0a16;--g:linear-gradient(135deg,#7c3aed,#ec4899);--glass:rgba(255,255,255,.08);--line:rgba(255,255,255,.14)}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:#fff;font-family:-apple-system,system-ui,Inter,Roboto,sans-serif;touch-action:none}
+body{background:radial-gradient(circle at 0 0,rgba(124,58,237,.45),transparent 45%),radial-gradient(circle at 100% 100%,rgba(236,72,153,.3),transparent 45%),var(--bg)}
+.top{position:absolute;top:max(12px,env(safe-area-inset-top));left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:0 max(18px,env(safe-area-inset-left))}
+.pill{background:var(--glass);border:1px solid var(--line);border-radius:999px;padding:8px 16px;font-size:14px;font-weight:600;display:flex;gap:8px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;background:#f59e0b}.ok .dot{background:#34d399;box-shadow:0 0 8px #34d399}
+#pad{position:absolute;inset:0}
+.dpad{position:absolute;left:max(6vw,env(safe-area-inset-left));top:50%;transform:translateY(-42%);width:min(42vh,190px);height:min(42vh,190px);border-radius:50%;background:var(--glass);border:1px solid var(--line)}
+.dpad i{position:absolute;width:0;height:0;border:14px solid transparent;opacity:.85}
+.dpad .u{left:50%;top:12%;transform:translateX(-50%);border-bottom:20px solid #fff;border-top:0}
+.dpad .d{left:50%;bottom:12%;transform:translateX(-50%);border-top:20px solid #fff;border-bottom:0}
+.dpad .l{top:50%;left:12%;transform:translateY(-50%);border-right:20px solid #fff;border-left:0}
+.dpad .r{top:50%;right:12%;transform:translateY(-50%);border-left:20px solid #fff;border-right:0}
+.dpad.on-u .u{border-bottom-color:#ec4899}.dpad.on-d .d{border-top-color:#ec4899}.dpad.on-l .l{border-right-color:#ec4899}.dpad.on-r .r{border-left-color:#ec4899}
+.btns{position:absolute;right:max(6vw,env(safe-area-inset-right));top:50%;transform:translateY(-42%);width:min(46vh,220px);height:min(46vh,220px)}
+.b{position:absolute;width:38%;height:38%;border-radius:50%;display:grid;place-items:center;font-size:26px;font-weight:800;background:var(--glass);border:1px solid var(--line);transition:transform .06s}
+.b.main{background:var(--g);border:0;box-shadow:0 0 0 6px rgba(236,72,153,.18),0 10px 26px rgba(124,58,237,.45)}
+.b.on{transform:scale(.9);filter:brightness(1.3)}
+.mid{position:absolute;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:12px}
+.s{padding:9px 20px;border-radius:999px;background:var(--glass);border:1px solid var(--line);font-size:12px;font-weight:700;letter-spacing:1px}
+.s.on{background:rgba(255,255,255,.25)}
+.sh{position:absolute;top:max(64px,calc(env(safe-area-inset-top) + 56px));display:flex;gap:10px}
+.sh .s{padding:10px 22px;font-size:13px}
+.msg{position:absolute;inset:0;display:none;place-items:center;text-align:center;padding:30px;background:rgba(12,10,22,.92);font-size:18px;line-height:1.5;z-index:9}
+@media (orientation:portrait){#rot{display:grid}}
+</style></head><body>
+<div class="top"><div class="pill" id="menu" data-k="menu">☰ Меню</div><div class="pill" id="st"><span class="dot"></span><span id="stt">Подключение…</span></div><div class="pill" id="fs" data-k="fs">⤢</div></div>
+<div id="pad"></div>
+<div class="msg" id="rot"><div><div style="font-size:54px">📱↻</div>Поверните телефон горизонтально</div></div>
+<div class="msg" id="full"><div>Уже подключены два игрока.<br>Отключите один телефон и обновите страницу.</div></div>
+<script>
+const K={A:96,B:97,X:99,Y:100,L1:102,R1:103,L2:104,R2:105,START:108,SELECT:109};
+// раскладки: [надпись, код, x%, y%, главная]
+const L={
+ menu:{name:'Меню',btn:[['ОК',K.A,58,8,1],['Назад',K.B,8,50]],mid:[]},
+ nes:{name:'Dendy',btn:[['A',K.A,58,22,1],['B',K.B,12,46]],mid:[['SELECT',K.SELECT],['START',K.START]]},
+ md:{name:'Sega',btn:[['C',K.A,62,10,1],['B',K.B,36,36],['A',K.Y,8,60]],mid:[['MODE',K.SELECT],['START',K.START]]},
+ psx:{name:'PlayStation',btn:[['△',K.X,31,0],['○',K.A,62,31,1],['✕',K.B,31,62],['□',K.Y,0,31]],mid:[['SELECT',K.SELECT],['START',K.START]],sh:[['L1',K.L1],['L2',K.L2]],shr:[['R2',K.R2],['R1',K.R1]]}
+};
+let ws,sys='menu',player=0,down=new Map(),dp=[0,0];
+const $=id=>document.getElementById(id);
+function send(t){if(ws&&ws.readyState==1)ws.send(t)}
+function buzz(){try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}}
+function render(){
+ const l=L[sys]||L.nes;let h='<div class="dpad" id="dp"><i class="u"></i><i class="d"></i><i class="l"></i><i class="r"></i></div><div class="btns">';
+ for(const [t,k,x,y,m] of l.btn)h+=`<div class="b${m?' main':''}" data-k="${k}" style="left:${x}%;top:${y}%">${t}</div>`;
+ h+='</div><div class="mid">'+l.mid.map(([t,k])=>`<div class="s" data-k="${k}">${t}</div>`).join('')+'</div>';
+ if(l.sh)h+='<div class="sh" style="left:max(6vw,env(safe-area-inset-left))">'+l.sh.map(([t,k])=>`<div class="s" data-k="${k}">${t}</div>`).join('')+'</div>';
+ if(l.shr)h+='<div class="sh" style="right:max(6vw,env(safe-area-inset-right))">'+l.shr.map(([t,k])=>`<div class="s" data-k="${k}">${t}</div>`).join('')+'</div>';
+ $('pad').innerHTML=h;down.clear();
+ $('stt').textContent=player?`Игрок ${player} · ${l.name}`:'Подключение…';
+}
+function key(el,on){
+ if(!el)return;const k=el.dataset.k;
+ if(k==='menu'){if(on){send('menu');buzz()}return}
+ if(k==='fs')return;
+ el.classList.toggle('on',on);send(`k ${k} ${on?1:0}`);if(on)buzz();
+}
+function dpad(t){
+ const d=$('dp');let x=0,y=0;
+ if(t){const r=d.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,dx=t.clientX-cx,dy=t.clientY-cy,dead=r.width*.12;
+  if(Math.hypot(dx,dy)>dead){const a=Math.atan2(dy,dx)*180/Math.PI;x=(a>-67.5&&a<67.5)?1:(a>112.5||a<-112.5)?-1:0;y=(a>22.5&&a<157.5)?1:(a<-22.5&&a>-157.5)?-1:0}}
+ if(x!==dp[0]||y!==dp[1]){dp=[x,y];send(`d ${x} ${y}`);if(x||y)buzz();d.className='dpad'+(y<0?' on-u':'')+(y>0?' on-d':'')+(x<0?' on-l':'')+(x>0?' on-r':'')}
+}
+function track(e){
+ e.preventDefault();const now=new Map();let dt=null;
+ if(e.type==='touchend')for(const t of e.changedTouches){const el=document.elementFromPoint(t.clientX,t.clientY);if(el&&el.closest('#fs'))goFull()}
+ for(const t of e.touches){const el=document.elementFromPoint(t.clientX,t.clientY);if(!el)continue;
+  const dpEl=el.closest('.dpad');if(dpEl){dt=t;continue}
+  const b=el.closest('[data-k]');if(b)now.set(t.identifier,b)}
+ // если палец начал на крестовине — держим его там
+ for(const t of e.touches){if(dpadFinger===t.identifier)dt=t}
+ if(e.type==='touchstart')for(const t of e.changedTouches){const el=document.elementFromPoint(t.clientX,t.clientY);if(el&&el.closest('.dpad'))dpadFinger=t.identifier}
+ if(![...e.touches].some(t=>t.identifier===dpadFinger))dpadFinger=null;
+ dpad(dt);
+ const prev=new Set(down.values()),cur=new Set(now.values());
+ for(const el of prev)if(!cur.has(el))key(el,false);
+ for(const el of cur)if(!prev.has(el))key(el,true);
+ down=now;
+}
+let dpadFinger=null;
+for(const ev of ['touchstart','touchmove','touchend','touchcancel'])document.addEventListener(ev,track,{passive:false});
+// мышь — для проверки с компьютера
+document.addEventListener('mousedown',e=>{const b=e.target.closest('[data-k]');if(b){key(b,true);const up=()=>{key(b,false);removeEventListener('mouseup',up)};addEventListener('mouseup',up)}});
+function goFull(){const d=document.documentElement;(d.requestFullscreen||d.webkitRequestFullscreen||(()=>{})).call(d);try{screen.orientation.lock('landscape').catch(()=>{})}catch(e){}}
+$('fs').onclick=goFull;
+function connect(){
+ ws=new WebSocket(`ws://${location.host}/ws`);
+ ws.onmessage=m=>{const p=m.data.split(' ');
+  if(p[0]==='hello'){player=+p[1];sys=p[2]||'menu';$('st').classList.add('ok');render()}
+  else if(p[0]==='sys'){sys=p[1];render();buzz()}
+  else if(p[0]==='full'){$('full').style.display='grid'}};
+ ws.onclose=()=>{player=0;$('st').classList.remove('ok');render();setTimeout(connect,1500)};
+}
+render();connect();
+</script></body></html>

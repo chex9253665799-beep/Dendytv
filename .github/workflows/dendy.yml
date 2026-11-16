@@ -33,30 +33,19 @@ jobs:
         run: |
           [ -n "$P" ] || { echo "Нет секрета DENDY_KEY_PASS"; exit 1; }
           gpg --batch --quiet --passphrase "$P" -d signing/dendy.jks.gpg > release.jks
-      - name: Бесплатные игры (открытые лицензии, собираются из исходников)
+      - name: Бесплатные игры (из выпуска games, открытые лицензии)
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          set +e
           G=lemuroid-app/src/main/assets/games; mkdir -p $G
-          sudo apt-get install -y -qq cc65 python3-pil >/dev/null
-          mkdir -p /tmp/g && cd /tmp/g
-          # Thwaite и Concentration Room — Damian Yerrick (pinobatch), GPL-3
-          for r in thwaite-nes croom-nes; do
-            git clone -q --depth 1 https://github.com/pinobatch/$r && (cd $r && make -s >/dev/null 2>&1; ls *.nes)
-          done
-          [ -f thwaite-nes/thwaite.nes ] && cp thwaite-nes/thwaite.nes "$GITHUB_WORKSPACE/$G/Thwaite.nes"
-          [ -f croom-nes/croom.nes ] && cp croom-nes/croom.nes "$GITHUB_WORKSPACE/$G/Concentration Room.nes"
-          # Alex vs Bus (Sega) — M374LX, GPL-3 / CC BY-SA 4.0
-          curl -fsSL http://sun.hasenbraten.de/vasm/release/vasm.tar.gz | tar xz && (cd vasm && make -s CPU=m68k SYNTAX=mot >/dev/null 2>&1)
-          git clone -q --depth 1 https://github.com/M374LX/alexvsbus-md && (cd alexvsbus-md && PATH=/tmp/g/vasm:$PATH sh build.sh)
-          [ -f alexvsbus-md/alexvsbus.md ] && cp alexvsbus-md/alexvsbus.md "$GITHUB_WORKSPACE/$G/Alex vs Bus.md"
-          cat > "$GITHUB_WORKSPACE/$G/LICENSES.txt" <<'TXT'
+          gh release download games -R ${{ github.repository }} -D $G || echo "выпуска games пока нет"
+          cat > $G/LICENSES.txt <<'TXT'
           Бесплатные игры в Dendy TV (свободные лицензии, исходники открыты):
           Thwaite — Damian Yerrick, GPL-3.0 — https://github.com/pinobatch/thwaite-nes
           Concentration Room — Damian Yerrick, GPL-3.0 — https://github.com/pinobatch/croom-nes
           Alex vs Bus: The Race — M374LX, GPL-3.0 (код), CC BY-SA 4.0 (графика, музыка) — https://github.com/M374LX/alexvsbus-md
           TXT
-          ls -la "$GITHUB_WORKSPACE/$G"
-          exit 0
+          ls -la $G
       - name: Сборка
         env:
           DENDY_KEY_PASS: ${{ secrets.DENDY_KEY_PASS }}

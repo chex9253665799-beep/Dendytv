@@ -1,0 +1,41 @@
+name: Бесплатные игры
+
+# Собирает бесплатные игры с открытой лицензией из исходников и кладёт их в выпуск games.
+# Сборка APK берёт их оттуда.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  games:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Сборка игр
+        run: |
+          set -x
+          sudo apt-get install -y -qq cc65 python3-pil >/dev/null
+          mkdir -p out && cd /tmp
+          for r in thwaite-nes croom-nes; do
+            git clone -q --depth 1 https://github.com/pinobatch/$r
+            (cd $r && make 2>&1 | tail -15; ls)
+          done
+          cp thwaite-nes/thwaite.nes "$GITHUB_WORKSPACE/out/Thwaite.nes" || true
+          cp croom-nes/croom.nes "$GITHUB_WORKSPACE/out/Concentration Room.nes" || true
+          for u in http://sun.hasenbraten.de/vasm/daily/vasm.tar.gz http://sun.hasenbraten.de/vasm/release/vasm.tar.gz http://phoenix.owl.de/tags/vasm1_9f.tar.gz http://phoenix.owl.de/tags/vasm2_0.tar.gz; do
+            curl -fsSL "$u" -o vasm.tgz && break
+          done
+          tar xzf vasm.tgz && d=$(ls -d vasm*/ | head -1) && (cd $d && make CPU=m68k SYNTAX=mot 2>&1 | tail -3) && export PATH=/tmp/$d:$PATH
+          git clone -q --depth 1 https://github.com/M374LX/alexvsbus-md
+          (cd alexvsbus-md && sh build.sh; ls -la *.md)
+          cp alexvsbus-md/alexvsbus.md "$GITHUB_WORKSPACE/out/Alex vs Bus.md" || true
+          ls -la "$GITHUB_WORKSPACE/out"
+      - name: Выпуск games
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd out; ls | grep -q . || exit 1
+          gh release delete games -y --cleanup-tag -R ${{ github.repository }} 2>/dev/null || true
+          gh release create games * -R ${{ github.repository }} -t "Бесплатные игры" -n "Игры со свободной лицензией: Thwaite, Concentration Room (pinobatch, GPL-3), Alex vs Bus (M374LX, GPL-3 / CC BY-SA 4.0)" --latest=false

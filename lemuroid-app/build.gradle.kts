@@ -10,9 +10,9 @@ plugins {
 
 android {
     defaultConfig {
-        versionCode = 252
-        versionName = "1.17.0" // Always remember to update Cores Tag!
-        applicationId = "com.swordfish.lemuroid"
+        versionCode = (System.getenv("DENDY_BUILD") ?: "1").toInt()
+        versionName = "1.0." + (System.getenv("DENDY_BUILD") ?: "0") // ядра качаются по тегу из CoreUpdaterImpl
+        applicationId = "ru.chex.dendytv"
     }
     flavorDimensions += listOf("opensource", "cores")
 
@@ -84,10 +84,11 @@ android {
         }
 
         maybeCreate("release").apply {
+            // Dendy TV: ключ расшифровывается в CI (signing/dendy.jks.gpg + секрет DENDY_KEY_PASS)
             storeFile = file("$rootDir/release.jks")
-            keyAlias = "lemuroid"
-            storePassword = "lemuroid"
-            keyPassword = "lemuroid"
+            keyAlias = "dendytv"
+            storePassword = System.getenv("DENDY_KEY_PASS") ?: ""
+            keyPassword = System.getenv("DENDY_KEY_PASS") ?: ""
         }
     }
 
@@ -96,12 +97,12 @@ android {
             isMinifyEnabled = true
             signingConfig = signingConfigs["release"]
             proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro")
-            resValue("string", "lemuroid_name", "Lemuroid")
+            resValue("string", "lemuroid_name", "Dendy TV")
         }
         getByName("debug") {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-DEBUG"
-            resValue("string", "lemuroid_name", "LemuroiDebug")
+            resValue("string", "lemuroid_name", "Dendy TV debug")
         }
     }
 

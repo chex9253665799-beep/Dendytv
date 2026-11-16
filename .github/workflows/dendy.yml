@@ -1,0 +1,50 @@
+name: Dendy TV APK
+
+# Сборка приложения для Android TV. Запуск: Actions → Dendy TV APK → Run workflow (или любой push в master).
+# Нужен секрет DENDY_KEY_PASS — пароль ключа подписи (ключ лежит зашифрованным в signing/dendy.jks.gpg).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths-ignore: ["**.md", "fastlane/**"]
+
+concurrency: dendy
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: gradle
+      - name: Ключ подписи
+        env:
+          P: ${{ secrets.DENDY_KEY_PASS }}
+        run: |
+          [ -n "$P" ] || { echo "Нет секрета DENDY_KEY_PASS"; exit 1; }
+          gpg --batch --quiet --passphrase "$P" -d signing/dendy.jks.gpg > release.jks
+      - name: Сборка
+        env:
+          DENDY_KEY_PASS: ${{ secrets.DENDY_KEY_PASS }}
+          DENDY_BUILD: ${{ github.run_number }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleFreeDynamicRelease
+          cp lemuroid-app/build/outputs/apk/freeDynamic/release/*.apk dendytv.apk
+          ls -la dendytv.apk
+      - name: Выпуск dendy-latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete dendy-latest -y --cleanup-tag 2>/dev/null || true
+          gh release create dendy-latest dendytv.apk -t "Dendy TV (сборка ${{ github.run_number }})" -n "Скачать: dendytv.apk" --latest

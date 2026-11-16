@@ -40,7 +40,7 @@ data class GameSystem(
     val hasTouchScreen: Boolean = false,
 ) {
     companion object {
-        private val SYSTEMS =
+        private val ALL_SYSTEMS =
             listOf(
                 GameSystem(
                     SystemID.ATARI2600,
@@ -1299,7 +1299,11 @@ data class GameSystem(
                 ),
             )
 
-        private val byIdCache by lazy { mapOf(*SYSTEMS.map { it.id.dbname to it }.toTypedArray()) }
+        // «Денди ТВ»: только три приставки — Денди (NES), Sega Genesis, PlayStation
+        val ENABLED = setOf(SystemID.NES, SystemID.GENESIS, SystemID.PSX)
+        private val SYSTEMS = ALL_SYSTEMS.filter { it.id in ENABLED }
+
+        private val byIdCache by lazy { mapOf(*ALL_SYSTEMS.map { it.id.dbname to it }.toTypedArray()) }
         private val byExtensionCache by lazy {
             val mutableMap = mutableMapOf<String, GameSystem>()
             for (system in SYSTEMS) {
